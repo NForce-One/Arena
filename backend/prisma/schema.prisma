@@ -1,0 +1,1125 @@
+// NForce Arena — full relational schema (all phases).
+// Tables for later phases (teams, bookings, fixtures, results…) are defined now
+// so the dense FK graph never needs rework; they cost nothing until used.
+//
+// ⚠ MIGRATIONS ONLY — never `prisma db push`. Hand-written SQL (btree_gist
+// exclusion constraint, CHECK, partial unique indexes) lives only in
+// prisma/migrations and would be silently dropped by db push.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" keeps local Windows dev working; rhel-openssl-3.0.x is the
+  // engine AWS Lambda's Node.js runtime needs (Amazon Linux 2023, glibc +
+  // OpenSSL 3.0). Query EXECUTION goes through @prisma/adapter-pg (see
+  // lib/prisma.ts), not this engine — but `prisma-client-js` still needs a
+  // matching binary present to generate/load the client itself.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (-pooler) — runtime
+  directUrl = env("DIRECT_URL") // direct — migrations & seed
+}
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum RoleName {
+  platform_admin
+  organizer
+  player
+  team_manager
+  ground_owner
+  umpire
+  parent
+}
+
+enum OneTimeTokenType {
+  email_verification
+  password_reset
+  // A managed (loginless) child's parent-initiated invite to graduate to an
+  // independent account — see ParentService.inviteChildToClaim / AuthService
+  // .claimAccount. Same single-use atomic-consume lifecycle as the other two.
+  account_claim
+  // A signed-in user changing their own account email — see
+  // AuthService.requestEmailChange/confirmEmailChange. Same lifecycle again;
+  // the new address lives in User.pendingEmail until the link is clicked,
+  // same idiom as account_claim's pendingClaimEmail.
+  email_change
+}
+
+enum TournamentStatus {
+  draft
+  published
+  closed
+}
+
+// Competitive structure — distinct from Tournament.format ("T20"/"One Day",
+// the PLAYING format). Named separately on purpose so the two never get
+// confused in code or UI copy.
+enum TournamentStructure {
+  round_robin
+  knockout
+  round_robin_knockout
+}
+
+// How the organizer says teams will be built for this tournament. No draft
+// mechanic (pick order, player pool, roster assignment) is implemented yet —
+// this is a recorded label only, for a future feature.
+enum TeamSelectionMode {
+  prebuilt_rosters
+  draft_based
+}
+
+// Who the publish-time notification (Tournament.notifyOnPublish) actually
+// reaches. 'everyone' is today's only behavior (every player + every team
+// manager); the other three narrow that down — see notifyPlatformOnPublish.
+enum TournamentNotifyAudience {
+  everyone
+  last_year_players
+  last_year_managers
+  state
+}
+
+// A tournament-category gender restriction. Deliberately NOT the personal
+// Gender enum on User (which has "prefer_not_to_say" — meaningless as a
+// competition category). Checked against User.gender at registration time.
+enum TournamentGenderCategory {
+  mens
+  womens
+  mixed
+}
+
+enum TeamRole {
+  captain
+  player
+}
+
+enum RegistrationStatus {
+  active
+  withdrawn
+}
+
+enum TeamRosterStatus {
+  invited
+  requested
+  accepted
+  declined
+}
+
+enum TournamentInvitationStatus {
+  invited
+  accepted
+  declined
+}
+
+enum ExternalInviteRole {
+  player
+  team_manager
+}
+
+enum ExternalInviteStatus {
+  pending
+  fulfilled
+}
+
+enum BookingStatus {
+  requested
+  confirmed
+  declined
+  cancelled
+}
+
+enum AssignmentStatus {
+  applied // umpire applied to officiate
+  invited // organizer invited the umpire
+  accepted
+  declined
+  withdrawn
+}
+
+enum RoleRequestStatus {
+  pending
+  approved
+  denied
+}
+
+enum ContactMessageStatus {
+  open
+  resolved
+}
+
+enum EmailStatus {
+  sent
+  failed
+  skipped
+}
+
+enum JerseySize {
+  xs
+  s
+  m
+  l
+  xl
+  xxl
+  xxxl
+}
+
+enum BattingStyle {
+  right_handed
+  left_handed
+  other
+}
+
+enum BowlingStyle {
+  none
+  right_arm_fast
+  right_arm_medium
+  right_arm_offbreak
+  right_arm_legbreak
+  left_arm_fast
+  left_arm_medium
+  left_arm_orthodox
+  left_arm_chinaman
+  other
+}
+
+enum PlayingRole {
+  batsman
+  bowler
+  all_rounder
+  wicket_keeper
+}
+
+enum HeightUnit {
+  cm
+  inches
+  ft
+}
+
+enum WeightUnit {
+  kg
+  lbs
+}
+
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+// ─────────────────────────── Users & Auth ────────────────────────────
+
+model User {
+  id                String    @id @default(cuid())
+  name              String
+  email             String    @unique
+  passwordHash      String    @map("password_hash")
+  verified          Boolean   @default(false)
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  // Storage key of the profile photo (see adapters/storage). Never a URL —
+  // URLs are minted signed-and-expiring on read, so nothing durable points
+  // at the object.
+  photoKey          String?   @map("photo_key")
+  // Access tokens issued before this instant are rejected — makes password
+  // reset kill live sessions, not just refresh tokens.
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Set only for a managed (loginless) child — points at the parent who
+  // created and manages this account. SetNull (not Cascade) on parent
+  // deletion: a child's registrations/roster entries/results/audit history
+  // must survive even if the managing parent account is later removed; the
+  // child just becomes unmanaged rather than being force-deleted. A child is
+  // otherwise a completely normal User row — nothing about a Registration or
+  // TeamRosterEntry cares whether its userId can log in.
+  managedByParentId String?   @map("managed_by_parent_id")
+  parent            User?     @relation("ParentChild", fields: [managedByParentId], references: [id], onDelete: SetNull)
+  managedChildren   User[]    @relation("ParentChild")
+  // Stamped when a parent sends a claim-your-account invite (see
+  // AuthService.inviteChildToClaim), so the family dashboard stops nudging
+  // the parent to send a second one while the first is still outstanding.
+  claimInviteSentAt DateTime? @map("claim_invite_sent_at") @db.Timestamptz(6)
+  // The real email address supplied at invite time — the OneTimeToken row
+  // itself carries no payload beyond userId/type, so this is where it waits
+  // until AuthService.claimAccount promotes it to `email` on consume (and
+  // clears this field). Never used for anything else; irrelevant/absent for
+  // a non-managed user.
+  pendingClaimEmail String?   @map("pending_claim_email")
+  // A signed-in user's requested new email, waiting on the email_change
+  // token to be clicked (same "OneTimeToken carries no payload" idiom as
+  // pendingClaimEmail above) — AuthService.confirmEmailChange promotes it to
+  // `email` and clears this field. Irrelevant/absent otherwise.
+  pendingEmail      String?   @map("pending_email")
+
+  // Member id, e.g. "P-042817" — prefix reflects the user's current
+  // highest-priority role (see CLUB_ID_PREFIXES/CLUB_ID_ROLE_PRIORITY in
+  // shared), kept in sync by UsersService's syncClubId helper on every
+  // grant/revoke. The numeric suffix never changes once assigned.
+  // platform_admin never gets one (stays null). Private — self + admin only.
+  clubId String? @unique @map("club_id")
+
+  // Shown on the public tournament page next to "organized by X" (organizer),
+  // and in the organizer's own Registrations tab next to "managed by X"
+  // (team manager). Not role-gated at the schema level — only ever shown in
+  // the UI for organizer/team_manager accounts.
+  academyName String? @map("academy_name")
+
+  // Free text, same convention as Tournament.locationState/Ground.location —
+  // no geocoding, just what the picker sends. Not cricket-specific (a team
+  // manager needs it too, for the organizer's "notify by state" targeting),
+  // so it lives here rather than in the cricket-profile block below.
+  state String?
+
+  // The player/manager's OWN opt-in: which states they want a
+  // 'tournament_published' notification for, independent of `state` above
+  // (their home state) and independent of any one organizer's own "who to
+  // notify" broadcast choice on Tournament.notifyAudiences — this fires
+  // purely off the VIEWER'S preference, every time ANY tournament publishes
+  // in a state they picked. Empty array = no subscription, not "everywhere".
+  notifyPublishStates String[] @default([]) @map("notify_publish_states")
+
+  // ── Cricket profile (all optional; filled in via the profile wizard) ──
+  phone                 String? // private — organizer/admin contact only
+  school                String? // public
+  jerseyNumber          Int?          @map("jersey_number") // public — collision-checked against teammates, see UsersService.updateSportsProfile
+  jerseyName            String?       @map("jersey_name") // public — nickname printed on the jersey back
+  jerseySize            JerseySize?   @map("jersey_size") // public
+  battingStyle          BattingStyle? @map("batting_style") // public
+  battingStyleOther     String?       @map("batting_style_other") // public — free text when battingStyle = other
+  bowlingStyle          BowlingStyle? @map("bowling_style") // public
+  bowlingStyleOther     String?       @map("bowling_style_other") // public — free text when bowlingStyle = other
+  playingRole           PlayingRole?  @map("playing_role") // public
+  heightValue           Float?        @map("height_value") // public
+  heightUnit            HeightUnit?   @map("height_unit") // public
+  weightValue           Float?        @map("weight_value") // public
+  weightUnit            WeightUnit?   @map("weight_unit") // public
+  gender                Gender?       @map("gender") // public
+  emergencyContactName  String?       @map("emergency_contact_name") // private
+  emergencyContactPhone String?       @map("emergency_contact_phone") // private
+  // Stamped by UsersService.updateSportsProfile / ParentService.updateChildSportsProfile
+  // whenever the consent step of the cricket-profile wizard is completed —
+  // drives the public "Consent confirmed" badge. consentedByUserId is the
+  // account that actually clicked agree: the player themself, or the parent
+  // signing on a managed child's behalf.
+  consentAcceptedAt     DateTime?     @map("consent_accepted_at") @db.Timestamptz(6)
+  consentedByUserId     String?       @map("consented_by_user_id")
+  consentedBy           User?         @relation("ConsentSignedBy", fields: [consentedByUserId], references: [id], onDelete: SetNull)
+  consentSignedFor      User[]        @relation("ConsentSignedBy")
+
+  roles                         UserRole[]
+  refreshTokens                 RefreshToken[]
+  oneTimeTokens                 OneTimeToken[]
+  organizedTournaments          Tournament[]                @relation("TournamentOrganizer")
+  ownAgeGroups                  AgeGroup[]
+  ownSurfaceTypes               SurfaceType[]
+  managedTeams                  Team[]                      @relation("TeamManager")
+  rosterEntries                 TeamRosterEntry[]
+  registrations                 Registration[]
+  grounds                       Ground[]                    @relation("GroundOwner")
+  bookingRequests               GroundBooking[]             @relation("BookingRequester")
+  umpireAssignments             UmpireAssignment[]          @relation("AssignmentUmpire")
+  enteredResults                Result[]                    @relation("ResultEnteredBy")
+  inningsScores                 PlayerInningsScore[]
+  registrationPayments          RegistrationPlayerPayment[]
+  notifications                 Notification[]
+  auditEntries                  AuditLog[]                  @relation("AuditActor")
+  announcements                 Announcement[]              @relation("AnnouncementAuthor")
+  sentTournamentInvitations     TournamentInvitation[]      @relation("TournamentInvitationInviter")
+  receivedTournamentInvitations TournamentInvitation[]      @relation("TournamentInvitationPlayer")
+  roleRequests                  RoleRequest[]               @relation("RoleRequestUser")
+  roleRequestsDecided           RoleRequest[]               @relation("RoleRequestDecider")
+  contactMessages               ContactMessage[]            @relation("ContactMessageUser")
+  contactMessagesResolved       ContactMessage[]            @relation("ContactMessageResolver")
+  sentExternalInvites           ExternalInvite[]            @relation("ExternalInviteInviter")
+  claimedExternalInvites        ExternalInvite[]            @relation("ExternalInviteClaimedBy")
+
+  @@index([managedByParentId])
+  @@map("users")
+}
+
+model Role {
+  id    Int        @id // fixed ids 1–6, seeded
+  name  RoleName   @unique
+  users UserRole[]
+
+  @@map("roles")
+}
+
+// A user may hold many roles (many-to-many). Role checks always read this
+// table fresh so a role change takes effect on the user's next action.
+model UserRole {
+  userId    String   @map("user_id")
+  roleId    Int      @map("role_id")
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Rotating refresh tokens. Only the SHA-256 hash is stored — a DB leak never
+// leaks usable sessions. One family per login; reuse of a rotated token is
+// treated as theft and revokes every session of the user.
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  familyId     String    @map("family_id")
+  tokenHash    String    @unique @map("token_hash")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  rotatedAt    DateTime? @map("rotated_at") @db.Timestamptz(6) // null = current token of its family
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedById String?   @unique @map("replaced_by_id")
+  userAgent    String?   @map("user_agent")
+  ip           String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("RefreshTokenSuccession", fields: [replacedById], references: [id])
+  replaces   RefreshToken? @relation("RefreshTokenSuccession")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// Unified one-time tokens (email verification + password reset): identical
+// lifecycle — issue → email → single atomic consume → expire. Hashed at rest.
+model OneTimeToken {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  type       OneTimeTokenType
+  tokenHash  String           @unique @map("token_hash")
+  expiresAt  DateTime         @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?        @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("one_time_tokens")
+}
+
+// ─────────────────────────── Tournaments ─────────────────────────────
+
+// Admin-managed age-group options (seeded so eligibility works from day one).
+// Shared across every tournament — a tournament attaches to one or more of
+// these via TournamentAgeGroup, which carries the per-tournament overrides.
+// `organizerId == null` is a platform default, seeded once and visible to
+// every organizer — never hideable (there is no admin management surface any
+// more; defaults are permanent). `organizerId` set means an organizer added
+// this bracket themselves from the tournament wizard's Age Groups step; only
+// THAT organizer can hide it, which only affects their own future picker —
+// it never deletes the row, so tournaments already using it keep working.
+model AgeGroup {
+  id          String  @id @default(cuid())
+  name        String  @unique // "U-13", "U-16", "U-19", "Open"
+  minAge      Int?    @map("min_age")
+  maxAge      Int?    @map("max_age")
+  organizerId String? @map("organizer_id")
+  hidden      Boolean @default(false)
+
+  organizer           User?                @relation(fields: [organizerId], references: [id])
+  tournamentAgeGroups TournamentAgeGroup[]
+
+  @@map("age_groups")
+}
+
+// Same "organizer_id NULL = permanent platform default" idiom as AgeGroup,
+// but this one supports a real, permanent delete rather than hide-only — a
+// surface type carries no eligibility semantics, so there's no historical-
+// data reason to keep a withdrawn one around. What DOES need protecting is a
+// surface type still referenced by a tournament, which the FK below (ON
+// DELETE RESTRICT, see the migration) enforces at the database level — the
+// service never needs its own check-then-delete race for this.
+model SurfaceType {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Turf", "Astro Turf", "Matting", "Cement", …
+  organizerId String?  @map("organizer_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organizer   User?        @relation(fields: [organizerId], references: [id])
+  tournaments Tournament[]
+
+  @@map("surface_types")
+}
+
+model Tournament {
+  id                   String                   @id @default(cuid())
+  name                 String
+  // DEPRECATED — format moved to TournamentAgeGroup.format (per bracket, not
+  // per tournament; different brackets can now play different formats).
+  // Column kept for existing rows' data; no longer read or written by any
+  // wizard UI or display code.
+  format               String? // "T20", "One Day", …
+  description          String?
+  structure            TournamentStructure      @default(round_robin)
+  teamSelectionMode    TeamSelectionMode        @default(prebuilt_rosters) @map("team_selection_mode")
+  // DEPRECATED — oversPerInnings moved to TournamentAgeGroup.oversPerInnings
+  // (per bracket, not per tournament — different brackets can now play a
+  // different overs count, same reasoning as format/capacity/entryFee
+  // above). Column kept for existing rows' data; no longer read or written.
+  oversPerInnings      Int?                     @map("overs_per_innings")
+  rules                String?
+  // Optional PDF/text attachment alongside the free-text `rules` above —
+  // same "store only the key, mint a signed URL on read" pattern as
+  // User.photoKey. Null means no document was ever uploaded.
+  rulesDocumentKey     String?                  @map("rules_document_key")
+  startDate            DateTime                 @map("start_date") @db.Date
+  endDate              DateTime                 @map("end_date") @db.Date
+  // DEPRECATED — capacity moved to TournamentAgeGroup.capacity (per bracket,
+  // not per tournament). Column kept for existing rows' data; no longer
+  // read or written by any capacity check or wizard UI.
+  capacity             Int?
+  // DEPRECATED — entryFee moved to TournamentAgeGroup.entryFee (per bracket).
+  // Column kept for existing rows' data; no longer read or written.
+  entryFee             Decimal?                 @map("entry_fee") @db.Decimal(10, 2)
+  prizePoolAmount      Decimal?                 @map("prize_pool_amount") @db.Decimal(10, 2)
+  prizePoolDescription String?                  @map("prize_pool_description")
+  // Free-text location — no geocoding/lookup, just what the organizer types.
+  locationCity         String?                  @map("location_city")
+  locationState        String?                  @map("location_state")
+  surfaceTypeId        String?                  @map("surface_type_id")
+  // Only meaningful for teamSelectionMode = prebuilt_rosters (a draft-based
+  // tournament has no formed teams yet at creation time to cap); enforced in
+  // the wizard's UI, not the schema — see SurfaceType/Tournament comments.
+  maxMarqueePlayers    Int?                     @map("max_marquee_players")
+  // Captured at creation, consumed once by OrganizerTournamentService.publish
+  // — notifying earlier would point players at a still-invisible draft
+  // (drafts never leak, see PublicTournamentService). notifiedAt is a cheap
+  // idempotency guard against a future retried-publish bug, not because a
+  // real double-fire path exists today (draft→published is one-way).
+  notifyOnPublish      Boolean                  @default(false) @map("notify_on_publish")
+  // Which of the notifyOnPublish blast's recipients gets it — an independent
+  // refinement of what "on" means, not a replacement for the boolean gate
+  // above. 'state' is only meaningful alongside a non-null notifyState.
+  // DEPRECATED — replaced by notifyAudiences (plural, multi-select) below.
+  // Column kept for existing rows' data; no longer read or written.
+  notifyAudience       TournamentNotifyAudience   @default(everyone) @map("notify_audience")
+  // Multi-select replacement for notifyAudience above — an organizer can
+  // combine e.g. last_year_players + last_year_managers + state in one
+  // publish notification instead of picking exactly one. 'everyone' stays
+  // exclusive by construction (enforced in the Zod schema, not here): it's
+  // never stored alongside another value since it's already a superset of
+  // every other option.
+  notifyAudiences      TournamentNotifyAudience[] @default([]) @map("notify_audiences")
+  notifyState          String?                    @map("notify_state")
+  notifiedAt           DateTime?                @map("notified_at") @db.Timestamptz(6)
+  status               TournamentStatus         @default(draft)
+  organizerId          String                   @map("organizer_id")
+  createdAt            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organizer       User                   @relation("TournamentOrganizer", fields: [organizerId], references: [id])
+  surfaceType     SurfaceType?           @relation(fields: [surfaceTypeId], references: [id])
+  ageGroups       TournamentAgeGroup[]
+  registrations   Registration[]
+  fixtures        Fixture[]
+  standings       Standing[]
+  invitations     TournamentInvitation[]
+  externalInvites ExternalInvite[]
+
+  @@index([status])
+  @@map("tournaments")
+}
+
+// One eligibility bracket attached to a tournament. A registration/
+// invitation claims exactly one of these, and each bracket has its OWN
+// capacity, its OWN playing format and entry fee, and its own "one active
+// registration per entity" uniqueness (see the partial unique indexes on
+// Registration, keyed on tournament_age_group_id) — a player/team can hold
+// one active registration in EVERY eligible bracket of the same tournament
+// independently, and different brackets can play different formats (e.g.
+// U-16 plays T20, Open plays One Day) at different fees. Fixtures/standings
+// stay TOURNAMENT-WIDE for now (one shared fixture list, one points table,
+// spanning every bracket, regardless of each bracket's own format) — turning
+// each bracket into a fully independent competition with its own fixtures
+// and standings is a deliberately separate, larger follow-up.
+model TournamentAgeGroup {
+  id           String @id @default(cuid())
+  tournamentId String @map("tournament_id")
+  ageGroupId   String @map("age_group_id")
+  // Max active registrations IN THIS BRACKET; null = unlimited. Counted the
+  // same mode-aware way as the tournament used to be (teams only for
+  // prebuilt_rosters, players only for draft_based) — see
+  // RegistrationService.runRegistrationTx.
+  capacity     Int?
+
+  // Playing format for THIS bracket (e.g. "T20", "One Day") — replaces the
+  // old tournament-wide Tournament.format now that different brackets of the
+  // same tournament can play different formats. Required going forward
+  // (backfilled from Tournament.format for existing rows by the migration
+  // that added this column).
+  format String
+
+  // Flat entry fee for THIS bracket; null = free. Per team for
+  // prebuilt_rosters, per player for draft_based (there's no team yet at
+  // registration time) — replaces the old tournament-wide Tournament.entryFee.
+  // Purely a displayed number today — see Tournament.entryFee's own history;
+  // nothing in this app charges or processes payment.
+  entryFee Decimal? @map("entry_fee") @db.Decimal(10, 2)
+
+  // Overs per innings for THIS bracket; null = not specified — replaces the
+  // old tournament-wide Tournament.oversPerInnings now that different
+  // brackets of the same tournament can play a different overs count.
+  oversPerInnings Int? @map("overs_per_innings")
+
+  // Concrete birth-date cutoffs for THIS tournament — replaces the old
+  // minAge/maxAge-as-of-tournament-start computation. Null on either end
+  // means no bound on that side. bornAfter excludes anyone too OLD (a
+  // maximum-age rule); bornBefore excludes anyone too YOUNG (a minimum-age
+  // rule). Both dates are month-granularity (always the 1st of the month)
+  // since the wizard only collects month+year, never a specific day.
+  bornAfter  DateTime? @map("born_after") @db.Date
+  bornBefore DateTime? @map("born_before") @db.Date
+
+  genderCategory TournamentGenderCategory @map("gender_category")
+
+  registrationStartDate DateTime  @map("registration_start_date") @db.Date
+  registrationEndDate   DateTime  @map("registration_end_date") @db.Date
+  // Retired field — kept nullable rather than dropped so historical rows
+  // keep their value; nothing reads or writes it any more. Registration
+  // open/closed is decided by start/end date alone.
+  registrationDeadline  DateTime? @map("registration_deadline") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tournament      Tournament             @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  ageGroup        AgeGroup               @relation(fields: [ageGroupId], references: [id])
+  registrations   Registration[]
+  invitations     TournamentInvitation[]
+  externalInvites ExternalInvite[]
+  draftTeams      Team[]                 @relation("DraftTeams")
+
+  // Can't pick the same global AgeGroup twice for one tournament.
+  @@unique([tournamentId, ageGroupId])
+  @@index([tournamentId])
+  @@map("tournament_age_groups")
+}
+
+// ─────────────────────────── Teams & Rosters ─────────────────────────
+
+model Team {
+  id                        String              @id @default(cuid())
+  name                      String
+  managerId                 String              @map("manager_id")
+  // Set only for a team an ORGANIZER built from a draft_based tournament's
+  // individually-registered player pool (see TeamService.createDraftTeam) —
+  // null for every normal, manager-created team. Deliberately NOT a real
+  // Registration row: a drafted player's own individual registration is
+  // what actually counts toward capacity/eligibility, so this team is purely
+  // an administrative "who's on which side" grouping FixtureService.schedule
+  // accepts as a fixture's home/away team without ever touching the
+  // registrations table.
+  draftTournamentAgeGroupId String?             @map("draft_tournament_age_group_id")
+  draftAgeGroup             TournamentAgeGroup? @relation("DraftTeams", fields: [draftTournamentAgeGroupId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  manager       User                   @relation("TeamManager", fields: [managerId], references: [id])
+  roster        TeamRosterEntry[]
+  registrations Registration[]
+  homeFixtures  Fixture[]              @relation("HomeTeam")
+  awayFixtures  Fixture[]              @relation("AwayTeam")
+  wonResults    Result[]               @relation("ResultWinner")
+  standings     Standing[]
+  invitations   TournamentInvitation[]
+  inningsScores PlayerInningsScore[]
+
+  @@map("teams")
+}
+
+model TeamRosterEntry {
+  teamId     String           @map("team_id")
+  userId     String           @map("user_id")
+  roleInTeam TeamRole         @default(player) @map("role_in_team")
+  // "invited" (manager-initiated) or "requested" (player-initiated, e.g. from
+  // a tournament's registered-players pool) until the other side responds;
+  // existing/seeded rows default to "accepted" so they stay valid members
+  // without a data backfill.
+  status     TeamRosterStatus @default(accepted)
+  joinedAt   DateTime         @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_roster")
+}
+
+// ─────────────────────────── Registrations ───────────────────────────
+
+// A player OR a team joining a tournament (exactly one of userId/teamId —
+// CHECK constraint in raw SQL). "One active registration per entity per
+// tournament" is enforced by partial unique indexes, also in raw SQL.
+model Registration {
+  id                   String             @id @default(cuid())
+  tournamentId         String             @map("tournament_id")
+  // Which of the tournament's age-group brackets this registration claims —
+  // eligibility (age + gender) and the registration window are both checked
+  // against this specific bracket, not the tournament as a whole. Cascade is
+  // inert in practice: a TournamentAgeGroup can only be deleted while its
+  // tournament is still draft (see OrganizerTournamentService.update), and
+  // no Registration can exist yet at that point (register() requires
+  // status === 'published'). This ordering guarantee is load-bearing.
+  tournamentAgeGroupId String             @map("tournament_age_group_id")
+  userId               String?            @map("user_id")
+  teamId               String?            @map("team_id")
+  status               RegistrationStatus @default(active)
+  // Set only when this registration was created past the tournament's own
+  // capacity, because the organizer explicitly confirmed an invite override
+  // (see TournamentInvitation.capacityOverridden, RegistrationService's
+  // overrideCapacity opt). A registration can never itself set this on
+  // direct/self registration — capacity stays a hard block there. Persisted
+  // (not just a one-time warning at invite time) so the organizer's
+  // Registrations page can keep showing why the tournament reads over its
+  // stated capacity, rather than that context vanishing after the pop-up.
+  capacityOverridden   Boolean            @default(false) @map("capacity_overridden")
+  // A SECOND, independent payment record from RegistrationPlayerPayment
+  // below — that one tracks each roster member's own payment; this one is
+  // the organizer's record of a single lump sum collected from the team AS
+  // A WHOLE (e.g. one bank transfer covering the whole squad's entry fee),
+  // which has nowhere to live per-member. Only meaningful when teamId is
+  // set; stays at its default (unused) for an individual player registration
+  // rather than living in a separate nullable table, since every
+  // registration already has exactly one row here to hang it on.
+  teamPaymentStatus     PaymentStatus      @default(unpaid) @map("team_payment_status")
+  // Only meaningful when teamPaymentStatus = partial; null otherwise — same
+  // convention as RegistrationPlayerPayment.paymentAmountPaid.
+  teamPaymentAmountPaid Decimal?           @map("team_payment_amount_paid") @db.Decimal(10, 2)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tournament         Tournament                  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournamentAgeGroup TournamentAgeGroup          @relation(fields: [tournamentAgeGroupId], references: [id], onDelete: Cascade)
+  user               User?                       @relation(fields: [userId], references: [id])
+  team               Team?                       @relation(fields: [teamId], references: [id])
+  playerPayments     RegistrationPlayerPayment[]
+
+  @@index([tournamentId])
+  @@index([tournamentAgeGroupId])
+  @@map("registrations")
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  completed
+}
+
+// The organizer's own bookkeeping of who's actually paid — scoped to ONE
+// registration (i.e. one specific tournament), never to the team/player
+// globally: a squad member who paid for Tournament A hasn't necessarily paid
+// for Tournament B the same team later enters. Covers both cases with one
+// shape: for an individually-registered player, there's at most one row
+// (userId = the registration's own userId); for a team registration, one row
+// per roster member the organizer has actually recorded a status for — a
+// missing row just reads as "unpaid" (see RegistrationService.listDetailFor),
+// so nothing needs to be eagerly created for a whole squad up front.
+// Organizer/admin-only to write (see RegistrationService.updatePayment) —
+// deliberately NOT exposed to the team manager's own view of their roster.
+model RegistrationPlayerPayment {
+  registrationId    String        @map("registration_id")
+  userId            String        @map("user_id")
+  paymentStatus     PaymentStatus @default(unpaid) @map("payment_status")
+  // Only meaningful when paymentStatus = partial; null otherwise.
+  paymentAmountPaid Decimal?      @map("payment_amount_paid") @db.Decimal(10, 2)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([registrationId, userId])
+  @@map("registration_player_payments")
+}
+
+// An organizer invites a team to their tournament; the team manager accepts
+// (which registers the team through the normal eligibility-checked path —
+// see RegistrationService) or declines. A partial unique index (raw SQL,
+// like the registrations ones above) blocks a second pending invite for the
+// same team+tournament while one is still outstanding.
+model TournamentInvitation {
+  id                    String                     @id @default(cuid())
+  tournamentId          String                     @map("tournament_id")
+  // Exactly one of teamId/userId is set — a hand-written CHECK constraint
+  // (same idiom as Registration's own exactly-one-of-user/team) enforces it
+  // at the DB level. A team invite is accepted by the team's manager; a
+  // player invite is accepted by the player themself.
+  teamId                String?                    @map("team_id")
+  userId                String?                    @map("user_id")
+  // Set only when the organizer confirmed past an eligibility mismatch while
+  // inviting an INDIVIDUAL PLAYER, then threaded into
+  // RegistrationService.register() when that player later accepts — the
+  // player never sees an override prompt themself (see
+  // TournamentInvitationService.invitePlayer/respond). Meaningless for a team
+  // invite: the team manager makes that call fresh at accept time instead.
+  eligibilityOverridden Boolean                    @default(false) @map("eligibility_overridden")
+  // Same idea as eligibilityOverridden, for the OTHER non-overridable gate:
+  // the bracket's own registration window. Set when the organizer confirmed
+  // past a "this bracket's window already closed" warning at invite time
+  // (see TournamentInvitationService.invite/invitePlayer), then threaded into
+  // resolveBracket()'s allowClosedWindow param on accept — otherwise the
+  // player/team would hit the exact same closed-window error the organizer
+  // just overrode, with no way to actually accept.
+  windowOverridden      Boolean                    @default(false) @map("window_overridden")
+  // Set when the organizer confirmed sending this invite despite the
+  // tournament already being at/over its stated capacity — the invitee
+  // (team manager or player) is never blocked by capacity when accepting an
+  // invitation carrying this flag, unlike a direct/self registration, where
+  // capacity always stays a hard block. Threaded into
+  // RegistrationService.register/registerChild's overrideCapacity opt on
+  // accept, same idiom as eligibilityOverridden/windowOverridden above.
+  capacityOverridden    Boolean                    @default(false) @map("capacity_overridden")
+  // The organizer picks the bracket when inviting a team or player — it's
+  // threaded through to RegistrationService.register() on accept, exactly
+  // like a self-service registration's own bracket choice.
+  tournamentAgeGroupId  String                     @map("tournament_age_group_id")
+  invitedById           String                     @map("invited_by_id")
+  status                TournamentInvitationStatus @default(invited)
+  createdAt             DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tournament         Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team               Team?              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user               User?              @relation("TournamentInvitationPlayer", fields: [userId], references: [id], onDelete: Cascade)
+  tournamentAgeGroup TournamentAgeGroup @relation(fields: [tournamentAgeGroupId], references: [id], onDelete: Cascade)
+  invitedBy          User               @relation("TournamentInvitationInviter", fields: [invitedById], references: [id])
+
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("tournament_invitations")
+}
+
+// An organizer invites someone by EMAIL who may not have an account yet —
+// unlike TournamentInvitation above, this doesn't require an existing
+// team/user row to point at. Both roles are tournament+bracket-scoped
+// (tournamentId/tournamentAgeGroupId set): a `player` invite becomes a real
+// TournamentInvitation the moment the invitee has an account (via
+// TournamentInvitationService.invitePlayer); a `team_manager` invite only
+// grants the role at that point — there's no team yet to invite — so it
+// stays around as a "claimed but not yet consumed" row until the manager's
+// first team gets created, at which point TeamService.create fires the real
+// TournamentInvitation for that team and stamps teamInviteFiredAt so a later
+// team never re-fires the same invite. `status` only ever needs two values:
+// `pending` (sent, not yet acted on) and `fulfilled` (the invitee now has an
+// account — granted directly if one already existed, or via signup — and,
+// for a player invite, the real TournamentInvitation was fired). There's no
+// partial-unique "one pending per email" constraint: sending again while
+// one's already pending is application-level treated as a resend (reissue
+// the same row's token/expiry), not an error.
+model ExternalInvite {
+  id                   String               @id @default(cuid())
+  email                String
+  role                 ExternalInviteRole
+  tournamentId         String?              @map("tournament_id")
+  tournamentAgeGroupId String?              @map("tournament_age_group_id")
+  invitedByOrganizerId String               @map("invited_by_organizer_id")
+  tokenHash            String               @unique @map("token_hash")
+  status               ExternalInviteStatus @default(pending)
+  claimedByUserId      String?              @map("claimed_by_user_id")
+  // team_manager only — set the moment TeamService.create fires the real
+  // TournamentInvitation for this invite's tournament+bracket, whether that
+  // succeeds or fails (best-effort, see TeamService's own comment): a null
+  // value here (alongside status = fulfilled) is what
+  // findUnconsumedTeamManagerInvites looks for.
+  teamInviteFiredAt DateTime? @map("team_invite_fired_at") @db.Timestamptz(6)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tournament         Tournament?         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournamentAgeGroup TournamentAgeGroup? @relation(fields: [tournamentAgeGroupId], references: [id], onDelete: Cascade)
+  invitedByOrganizer User                @relation("ExternalInviteInviter", fields: [invitedByOrganizerId], references: [id])
+  claimedByUser      User?               @relation("ExternalInviteClaimedBy", fields: [claimedByUserId], references: [id])
+
+  @@index([tournamentId])
+  @@index([claimedByUserId])
+  @@map("external_invites")
+}
+
+// A signup can ask for a non-player role; a platform_admin must approve it
+// before the role is actually granted. `player` is automatic (never
+// requested) and `platform_admin` is never requestable — enforced at the
+// Zod layer (requestedRoleSchema), not here.
+model RoleRequest {
+  id            String            @id @default(cuid())
+  userId        String            @map("user_id")
+  requestedRole RoleName          @map("requested_role")
+  status        RoleRequestStatus @default(pending)
+  decidedById   String?           @map("decided_by_id")
+  decidedAt     DateTime?         @map("decided_at") @db.Timestamptz(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      User  @relation("RoleRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("RoleRequestDecider", fields: [decidedById], references: [id])
+
+  @@index([userId])
+  @@map("role_requests")
+}
+
+// A general "contact an admin" message from any signed-in user — deliberately
+// NOT a full support-ticket system (no threading, no replies stored here);
+// resolving just marks it closed. The admin's resolve decision is audited,
+// the user's own submission is not — same convention as RoleRequest.
+model ContactMessage {
+  id           String               @id @default(cuid())
+  userId       String               @map("user_id")
+  subject      String
+  message      String
+  status       ContactMessageStatus @default(open)
+  resolvedById String?              @map("resolved_by_id")
+  resolvedAt   DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User  @relation("ContactMessageUser", fields: [userId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("ContactMessageResolver", fields: [resolvedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("contact_messages")
+}
+
+// ──────────────────────── Grounds & Bookings ─────────────────────────
+
+model Ground {
+  id                String   @id @default(cuid())
+  name              String
+  location          String
+  capacity          Int?
+  facilities        Json     @default("[]") // ["floodlights", "nets", …]
+  availabilityRules Json     @default("[]") @map("availability_rules") // [{ day, from, to }]
+  ownerId           String   @map("owner_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  owner    User            @relation("GroundOwner", fields: [ownerId], references: [id])
+  bookings GroundBooking[]
+  fixtures Fixture[]
+
+  @@map("grounds")
+}
+
+// Booking lifecycle: requested → confirmed | declined | cancelled.
+// INVARIANT (raw SQL exclusion constraint): no two CONFIRMED bookings on the
+// same ground may overlap in time — enforced by the database itself, so even
+// two simultaneous confirmations cannot both succeed.
+model GroundBooking {
+  id          String        @id @default(cuid())
+  groundId    String        @map("ground_id")
+  requesterId String        @map("requester_id")
+  fixtureId   String?       @map("fixture_id")
+  startsAt    DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime      @map("ends_at") @db.Timestamptz(6)
+  status      BookingStatus @default(requested)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ground    Ground   @relation(fields: [groundId], references: [id])
+  requester User     @relation("BookingRequester", fields: [requesterId], references: [id])
+  fixture   Fixture? @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  @@index([groundId])
+  @@map("ground_bookings")
+}
+
+// ─────────────────────────── Fixtures ────────────────────────────────
+
+model Fixture {
+  id              String   @id @default(cuid())
+  tournamentId    String   @map("tournament_id")
+  homeTeamId      String   @map("home_team_id")
+  awayTeamId      String   @map("away_team_id")
+  groundId        String?  @map("ground_id")
+  startsAt        DateTime @map("starts_at") @db.Timestamptz(6)
+  durationMinutes Int      @map("duration_minutes")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tournament        Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  homeTeam          Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam          Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  ground            Ground?            @relation(fields: [groundId], references: [id])
+  result            Result?
+  bookings          GroundBooking[]
+  umpireAssignments UmpireAssignment[]
+
+  @@index([tournamentId])
+  @@map("fixtures")
+}
+
+// INVARIANT (service layer — cross-table, cannot be an exclusion constraint):
+// an umpire must never hold two ACCEPTED assignments whose fixtures overlap
+// in time. Enforced in the fixtures/umpires services inside a transaction.
+model UmpireAssignment {
+  id        String           @id @default(cuid())
+  fixtureId String           @map("fixture_id")
+  umpireId  String           @map("umpire_id")
+  status    AssignmentStatus
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  fixture Fixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  umpire  User    @relation("AssignmentUmpire", fields: [umpireId], references: [id], onDelete: Cascade)
+
+  @@unique([fixtureId, umpireId])
+  @@index([umpireId])
+  @@map("umpire_assignments")
+}
+
+// ──────────────────────── Results & Standings ────────────────────────
+
+// Exactly one result per fixture; re-entering updates in place.
+model Result {
+  id            String   @id @default(cuid())
+  fixtureId     String   @unique @map("fixture_id")
+  homeScore     String   @map("home_score") // display string, e.g. "165/7 (20 ov)"
+  awayScore     String   @map("away_score")
+  winnerTeamId  String?  @map("winner_team_id") // null = draw / no result
+  // Optional plain numeric runs total per side — separate from the free-text
+  // display score above, which stays untouched. Only present when the
+  // organizer used the per-player scoring toggle; null otherwise. Individual
+  // PlayerInningsScore rows are validated to sum to AT MOST this number, never
+  // exactly — real totals include extras (byes, wides, no-balls) that aren't
+  // attributable to any one batter.
+  homeRunsTotal Int?     @map("home_runs_total")
+  awayRunsTotal Int?     @map("away_runs_total")
+  enteredById   String   @map("entered_by_id")
+  enteredAt     DateTime @default(now()) @map("entered_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  fixture      Fixture              @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  winnerTeam   Team?                @relation("ResultWinner", fields: [winnerTeamId], references: [id])
+  enteredBy    User                 @relation("ResultEnteredBy", fields: [enteredById], references: [id])
+  playerScores PlayerInningsScore[]
+
+  @@map("results")
+}
+
+// Per-player runs within one side of one result — optional detail alongside
+// the team-level score. Always fully replaced (delete-then-reinsert) on
+// every result entry/correction, same "always fresh, no diff trail"
+// semantics as Result itself: never incrementally patched.
+model PlayerInningsScore {
+  id       String @id @default(cuid())
+  resultId String @map("result_id")
+  userId   String @map("user_id")
+  teamId   String @map("team_id") // which of the fixture's two sides this player represents
+  runs     Int
+  // Bowling figures are deliberately just this one number (not overs/runs
+  // conceded) — a lightweight "who took how many wickets" alongside the
+  // batting card, not a full bowling scorecard.
+  wickets  Int    @default(0)
+
+  result Result @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, userId])
+  @@map("player_innings_scores")
+}
+
+// Derived table: wiped and rebuilt for the whole tournament whenever any of
+// its results change. Never incrementally updated — correctness under
+// corrections beats the tiny write cost.
+model Standing {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  teamId       String   @map("team_id")
+  played       Int      @default(0)
+  won          Int      @default(0)
+  lost         Int      @default(0)
+  drawn        Int      @default(0)
+  points       Int      @default(0)
+  computedAt   DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id])
+
+  @@unique([tournamentId, teamId])
+  @@map("standings")
+}
+
+// ──────────────────── Notifications & Announcements ──────────────────
+
+// One row per in-app notification; also logs the email delivery attempt.
+// The in-app row is written FIRST — a failed email never removes it.
+model Notification {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  type        String // "registration_confirmed", "announcement", …
+  title       String
+  body        String
+  payload     Json        @default("{}")
+  emailStatus EmailStatus @default(skipped) @map("email_status")
+  readAt      DateTime?   @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// Platform-wide announcement by an admin, fanned out into notifications
+// for all users or for users holding targetRole.
+model Announcement {
+  id          String     @id @default(cuid())
+  title       String
+  body        String
+  targetRoles RoleName[] @default([]) @map("target_roles") // empty = every user
+  createdById String     @map("created_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdBy User @relation("AnnouncementAuthor", fields: [createdById], references: [id])
+
+  @@map("announcements")
+}
+
+// ─────────────────────────── Audit Trail ─────────────────────────────
+
+// Written in the SAME transaction as the action it records, so the trail can
+// never be missing an action that actually happened.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?  @map("actor_user_id")
+  action      String // "auth.password_reset", "role.granted", "tournament.deleted", …
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  meta        Json     @default("{}")
+  ip          String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// ────────────────────────── Rate limiting ─────────────────────────────
+
+// Postgres-backed hit counters for the login/signup/forgot-password/
+// resend-verification limiters (see rateLimiters.ts, PostgresRateLimitStore)
+// — NOT express-rate-limit's default in-memory MemoryStore. This app runs
+// on Lambda, where each concurrent execution environment is a separate
+// process with its own memory; an in-memory counter resets per container,
+// so the same real-world IP's attempts get tracked independently per
+// container instead of together — a request that should be the 6th (and
+// blocked) can land on a container that has never seen this IP before and
+// silently succeed. This table is the single shared counter every
+// container reads and writes, so the limit is enforced consistently no
+// matter which container handles which request. `key` already encodes
+// which form the counter belongs to (see PostgresRateLimitStore's prefix)
+// so one table serves all four limiters without their counts bleeding
+// into each other.
+model RateLimitCounter {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at") @db.Timestamptz(6)
+
+  @@map("rate_limit_counters")
+}

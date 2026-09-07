@@ -1,0 +1,594 @@
+.stage {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px 24px;
+  overflow: hidden;
+}
+
+@keyframes photoIn {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes topbarIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes fadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin: 0 -20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 36px;
+  animation: topbarIn 340ms var(--ease-out) 90ms both;
+}
+
+.topbar .brand {
+  padding: 0;
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  animation: photoIn 560ms var(--ease-out) both;
+}
+.photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.45s ease;
+}
+:global([data-hero='dark']) {
+  opacity: 0 !important;
+}
+:global([data-theme='dark'] [data-hero='light']) {
+  opacity: 0 !important;
+}
+:global([data-theme='dark'] [data-hero='dark']) {
+  opacity: 1 !important;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 640px);
+  margin: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--red);
+  border-radius: 22px;
+  padding: 20px 48px 18px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 40px 90px rgba(0, 0, 0, 0.45),
+    0 12px 30px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  transform-origin: center;
+  animation: cardIn 480ms var(--ease-out) 140ms both;
+}
+:global([data-theme='dark']) .card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 40px 90px rgba(0, 0, 0, 0.6),
+    0 12px 30px rgba(225, 27, 34, 0.1);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+.brandText {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1;
+}
+.brandText b {
+  color: var(--red);
+  font-weight: 800;
+}
+.brandTag {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.headline {
+  margin: 0;
+  text-align: center;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 31px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.headlineAccent {
+  color: var(--red);
+}
+
+.deck {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.ballDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px auto 10px;
+  width: 120px;
+}
+.ballLine {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.roleGroup {
+  margin-bottom: 12px;
+}
+.roleLabel {
+  display: block;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.role {
+  appearance: none;
+  height: 44px;
+  padding: 0 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 160ms var(--ease-out);
+}
+.role svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transition: color 150ms ease;
+}
+.role:hover {
+  border-color: var(--red);
+}
+.role:active {
+  transform: scale(0.97);
+}
+.role:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.roleActive {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.roleActive svg {
+  color: #fff;
+}
+.roleActive:hover {
+  background: #c4161c;
+  border-color: #c4161c;
+}
+
+.roleNoteWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  transition:
+    grid-template-rows 280ms var(--ease-out),
+    margin-top 280ms var(--ease-out);
+}
+.roleNoteWrap[data-open='true'] {
+  grid-template-rows: 1fr;
+  margin-top: 10px;
+}
+.roleNoteInner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.roleNoteWrap[data-open='true'] .roleNoteInner {
+  opacity: 1;
+}
+.roleNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(225, 27, 34, 0.06);
+  border: 1px solid rgba(225, 27, 34, 0.18);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.roleNote svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--red);
+  margin-top: 2px;
+}
+.roleNote strong {
+  font-weight: 700;
+  color: var(--red);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  transition: border-color 0.15s ease;
+}
+.field:focus-within {
+  border-color: var(--line);
+}
+.field svg {
+  flex: none;
+  color: var(--muted);
+  width: 19px;
+  height: 19px;
+}
+
+.input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 16.5px;
+  height: 100%;
+  padding: 0;
+}
+.input:focus,
+.input:focus-visible {
+  outline: none;
+}
+.input::placeholder {
+  color: var(--muted);
+}
+
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus,
+.input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset;
+  box-shadow: 0 0 0 1000px var(--card) inset;
+  caret-color: var(--text);
+  transition:
+    background-color 600000s 0s,
+    color 600000s 0s;
+}
+.input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.hint {
+  display: block;
+  margin-top: -6px;
+  margin-bottom: 6px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.eyeBtn {
+  appearance: none;
+  border: 0;
+  padding: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+}
+.eyeBtn:hover {
+  color: var(--text);
+}
+.eyeBtn:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.terms input {
+  appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--card);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+  margin-top: 1px;
+}
+.terms input:checked {
+  background: var(--red);
+  border-color: var(--red);
+}
+.terms input:checked::after {
+  content: '';
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.terms a {
+  color: var(--red);
+  font-weight: 600;
+  text-decoration: none;
+}
+.terms a:hover {
+  text-decoration: underline;
+}
+
+.legalLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--red);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.legalLink:hover {
+  text-decoration: underline;
+}
+.legalLink:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.primary {
+  appearance: none;
+  border: 0;
+  height: 50px;
+  padding: 0 22px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition:
+    background-color 150ms ease,
+    transform 160ms var(--ease-out);
+}
+.primary:hover {
+  background: #c4161c;
+}
+.primary:active {
+  transform: scale(0.98);
+}
+.primary:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.footNote {
+  margin: 10px 0 0;
+  text-align: center;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+}
+.footNote a {
+  color: var(--red);
+  font-weight: 700;
+  text-decoration: none;
+}
+.footNote a:hover {
+  text-decoration: underline;
+}
+
+.formError {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--red);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+  color: var(--red);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+.fieldError {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--red);
+  margin-top: -2px;
+}
+
+@media (max-width: 900px) {
+  .stage {
+    padding: 0 12px 24px;
+  }
+  .topbar {
+    margin: 0 -12px;
+    padding: 14px 12px;
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .card {
+    padding: 16px 18px 14px;
+    border-radius: 14px;
+  }
+  .roleGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .headline {
+    font-size: 22px;
+  }
+  .brandText {
+    font-size: 17px;
+  }
+  .brandTag {
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+  }
+}
+
+@media (max-width: 400px) {
+  .card {
+    padding: 14px 14px 12px;
+  }
+  .roleGrid {
+    grid-template-columns: 1fr;
+  }
+  .headline {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo,
+  .topbar,
+  .card {
+    animation: fadeOnly 220ms ease-out both;
+    animation-delay: 0ms;
+    filter: none;
+    transform: none;
+  }
+  .primary,
+  .role {
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+  .primary:active,
+  .role:active {
+    transform: none;
+  }
+}

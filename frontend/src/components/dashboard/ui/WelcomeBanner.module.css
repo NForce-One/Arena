@@ -1,0 +1,179 @@
+.banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  background:
+    radial-gradient(
+      120% 180% at 0% 0%,
+      rgba(225, 27, 34, 0.14) 0%,
+      rgba(225, 27, 34, 0.02) 38%,
+      transparent 62%
+    ),
+    var(--card);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  animation: bannerIn 620ms var(--ease-out) 80ms both;
+}
+
+:global([data-theme='dark']) .banner {
+  background:
+    radial-gradient(
+      120% 180% at 0% 0%,
+      rgba(225, 27, 34, 0.24) 0%,
+      rgba(225, 27, 34, 0.05) 42%,
+      transparent 66%
+    ),
+    var(--card);
+}
+
+.copy {
+  min-width: 0;
+}
+
+.h1 {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.name {
+  color: var(--red);
+}
+
+.sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.sub b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.roleChip {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 10px;
+  border-radius: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--red);
+  color: #fff;
+}
+
+.roleText {
+  text-align: left;
+}
+
+.roleLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.roleValue {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0a8a3a;
+  line-height: 1.1;
+}
+:global([data-theme='dark']) .roleValue {
+  color: #3ecf7c;
+}
+
+@keyframes bannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+@keyframes bannerFadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner {
+    animation: bannerFadeOnly 260ms ease-out both;
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .banner {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    padding: 18px 18px 18px;
+  }
+  .copy {
+    text-align: left;
+    width: 100%;
+  }
+  .h1,
+  .sub {
+    text-align: left;
+  }
+  .roleChip {
+    justify-self: start;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .banner {
+    padding: 16px 14px;
+    gap: 16px;
+    border-radius: 16px;
+  }
+  .h1 {
+    font-size: 20px;
+  }
+  .sub {
+    font-size: 13px;
+  }
+  .roleChip {
+    padding: 8px 14px 8px 8px;
+    gap: 10px;
+  }
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .roleValue {
+    font-size: 15px;
+  }
+}

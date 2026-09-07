@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>NForce Arena</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- One font, everywhere: Inter, across display/body/labels/numbers.
+         Replaces the prior four-typeface system (Archivo Black/Barlow/
+         Barlow Condensed/IBM Plex Mono) plus an unused VT323 fetch. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      /* Applies the saved (or OS) theme before the first paint. Without this,
+         every reload flashes the light theme before React can read the
+         preference. Kept inline and tiny on purpose — it must run render-
+         blocking, ahead of the stylesheet painting anything. */
+      (function () {
+        try {
+          var stored = localStorage.getItem('nforce-theme');
+          var theme =
+            stored ||
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    <!-- Every route now renders the new design (dashboard.css), so this is a
+         constant, not a per-route computation — see dashboard.css's own
+         comment on [data-shell='new'] for why the attribute still exists.
+         Setting it here, render-blocking and before first paint, is what
+         actually matters: the old App.tsx set it from a useEffect, which
+         only runs AFTER the first paint, so every hard reload/navigation
+         painted one frame of index.css's unscoped (old Scorebook) body
+         styles before flipping — the flash this replaces. -->
+    <script>
+      document.documentElement.setAttribute('data-shell', 'new');
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,306 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.panel {
+  position: relative;
+  background:
+    radial-gradient(
+      120% 180% at 100% 0%,
+      rgba(225, 27, 34, 0.14) 0%,
+      rgba(225, 27, 34, 0.02) 38%,
+      transparent 62%
+    ),
+    radial-gradient(90% 140% at 0% 100%, rgba(225, 27, 34, 0.06) 0%, transparent 55%), var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 26px 28px 30px;
+  animation: cardIn 620ms var(--ease-out) 180ms both;
+}
+:global([data-theme='dark']) .panel {
+  background:
+    radial-gradient(
+      120% 180% at 100% 0%,
+      rgba(225, 27, 34, 0.24) 0%,
+      rgba(225, 27, 34, 0.05) 42%,
+      transparent 66%
+    ),
+    radial-gradient(90% 140% at 0% 100%, rgba(225, 27, 34, 0.1) 0%, transparent 60%), var(--card);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.headText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.h2 {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(20px, 2vw, 26px);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.deck {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 54ch;
+}
+
+.markAll {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  margin-top: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 160ms var(--ease-out);
+}
+.markAll svg {
+  color: var(--red);
+}
+@media (hover: hover) and (pointer: fine) {
+  .markAll:hover {
+    color: var(--red);
+    border-color: var(--red);
+  }
+}
+.markAll:active {
+  transform: scale(0.97);
+}
+.markAll:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.filters {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--chip);
+  border: 1px solid var(--line);
+}
+:global([data-theme='dark']) .filters {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  background: var(--red);
+  border-radius: 999px;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform, width;
+  box-shadow: 0 4px 14px -6px rgba(225, 27, 34, 0.55);
+}
+.pillReady {
+  transition:
+    transform 280ms cubic-bezier(0.32, 0.72, 0, 1),
+    width 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chip {
+  position: relative;
+  z-index: 1;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 220ms ease,
+    transform 160ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    color: var(--red);
+  }
+  .chipActive:hover {
+    color: #fff;
+  }
+}
+.chip:active {
+  transform: scale(0.97);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+.chipActive {
+  color: #fff;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 44px 24px 32px;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  background: var(--chip);
+  animation: emptyIn 340ms var(--ease-out) 40ms both;
+}
+:global([data-theme='dark']) .empty {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: rgba(225, 27, 34, 0.1);
+  color: var(--red);
+  margin-bottom: 4px;
+  animation: iconIn 420ms var(--ease-out) 120ms both;
+}
+:global([data-theme='dark']) .emptyIcon {
+  background: rgba(225, 27, 34, 0.18);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.emptyBody {
+  margin: 0;
+  max-width: 46ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes cardFadeOnly {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes emptyIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes iconIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: cardFadeOnly 260ms ease-out both;
+    transform: none;
+    filter: none;
+  }
+  .empty {
+    animation: cardFadeOnly 220ms ease-out both;
+    transform: none;
+  }
+  .emptyIcon {
+    animation: cardFadeOnly 220ms ease-out 80ms both;
+    transform: none;
+  }
+  .chip {
+    transition: color 0.18s ease;
+  }
+  .chip:active {
+    transform: none;
+  }
+  .pillReady {
+    transition: none;
+  }
+  .markAll:active {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 22px 20px 26px;
+  }
+  .header {
+    margin-bottom: 20px;
+  }
+}

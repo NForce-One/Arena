@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Lambda deployment packages (built locally, never committed)
+*.zip
+backend/.lambda-package/
+
+# Test coverage
+coverage/
+
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+
+.vercel
+
+# Uploaded files (local-disk storage adapter)
+backend/var/
+
+.vercel
+.env*

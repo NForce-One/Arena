@@ -1,0 +1,136 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 9, 11, 0.55);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 160ms var(--ease-out) both;
+}
+
+.panel {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
+  animation: popIn 200ms var(--ease-out) both;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.headText {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(18px, 3vw, 22px);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.updated {
+  margin: 6px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--ease-out),
+    color 160ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .close:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+}
+.close:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.body {
+  padding: 20px 24px 26px;
+  overflow-y: auto;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .panel {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .panel {
+    max-height: 88vh;
+  }
+  .head {
+    padding: 18px 18px 14px;
+  }
+  .body {
+    padding: 16px 18px 22px;
+  }
+}

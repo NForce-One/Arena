@@ -1,0 +1,132 @@
+:root {
+  --red: #e11b22;
+  --bg: #f6f6f6;
+  --card: #ffffff;
+  --text: #17191e;
+  --muted: #5e646f;
+  --line: #e5e5e8;
+  --panel: #ffffff;
+  --chip: #f2f2f4;
+  --stat: color-mix(in srgb, var(--red) 12%, #18191d);
+
+  --gutter: 40px;
+  --content: 1268px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #08090b;
+  --card: #111214;
+  --text: #f5f6f8;
+  --muted: #9ba1ac;
+  --line: #25272c;
+  --panel: #0c0d10;
+  --chip: #181a1e;
+  --stat: color-mix(in srgb, var(--red) 16%, #232429);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  :root {
+    --gutter: 12px;
+  }
+}
+
+html[data-shell='new'] {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell='new'] {
+    scroll-behavior: auto;
+  }
+}
+
+html[data-shell='new'] body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+:where(html[data-shell='new']) a:where(:not([class])) {
+  color: var(--text);
+  text-decoration: none;
+}
+:where(html[data-shell='new']) a:where(:not([class])):hover {
+  color: var(--red);
+}
+html[data-shell='new'] a {
+  text-decoration: none;
+}
+html[data-shell='new'] input,
+html[data-shell='new'] select,
+html[data-shell='new'] button {
+  font-family: inherit;
+}
+
+html[data-shell='new'][data-theme='dark'] select {
+  background-color: var(--card);
+}
+html[data-shell='new'][data-theme='dark'] select option {
+  background-color: var(--card);
+  color: var(--text);
+}
+
+html[data-shell='new'] .dt-field {
+  flex: initial;
+  width: 100%;
+  min-width: 0;
+}
+
+.section-anchor {
+  scroll-margin-top: 122px;
+}
+
+.shell {
+  width: 100%;
+}
+
+.bleed {
+  padding-inline: max(var(--gutter), calc((100% - var(--content)) / 2));
+}
+
+section.band {
+  padding-block: 64px;
+}
+
+h2.head {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(21px, 3.2vw, 30px);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+h2.head .r {
+  color: var(--red);
+}
+
+p.deck {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 56ch;
+}
+
+@media (max-width: 720px) {
+  section.band {
+    padding-block: 40px;
+  }
+}

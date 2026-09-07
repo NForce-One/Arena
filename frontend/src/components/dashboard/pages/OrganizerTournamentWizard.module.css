@@ -1,0 +1,340 @@
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.optionTile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms var(--ease-out),
+    background-color 180ms var(--ease-out);
+}
+:global([data-theme='dark']) .optionTile {
+  background: rgba(255, 255, 255, 0.03);
+}
+@media (hover: hover) and (pointer: fine) {
+  .optionTile:hover {
+    border-color: color-mix(in srgb, var(--red) 40%, var(--line));
+  }
+}
+.optionTileActive {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, var(--card));
+}
+:global([data-theme='dark']) .optionTileActive {
+  background: color-mix(in srgb, var(--red) 16%, var(--card));
+}
+
+.optionTitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text);
+}
+.optionDescription {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ageGroupCheckList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ageGroupCheckRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+}
+:global([data-theme='dark']) .ageGroupCheckRow {
+  background: rgba(255, 255, 255, 0.03);
+}
+.ageGroupCheckRow input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--red);
+  cursor: pointer;
+}
+.ageGroupCheckName {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.ageGroupCheckRange {
+  margin-left: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.ageGroupHideBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ageGroupHideBtn:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+.ageGroupHideBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ageGroupAddRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.ageGroupAddRow input {
+  flex: 1;
+}
+
+.ageGroupCard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.ageGroupCard:last-child {
+  margin-bottom: 0;
+}
+.ageGroupCardHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ageGroupCardTitle {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+}
+.ageGroupCardDefault {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.reviewHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px dashed var(--line);
+}
+.reviewHeroBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+.reviewHeroText {
+  min-width: 0;
+}
+.reviewHeroName {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.reviewHeroSub {
+  margin: 3px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.reviewDescription {
+  margin: 0 0 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.reviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.reviewCard {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+}
+:global([data-theme='dark']) .reviewCard {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.reviewCardHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.reviewCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+  flex-shrink: 0;
+}
+.reviewCardTitle {
+  flex: 1;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.reviewEditLink {
+  border: 0;
+  background: transparent;
+  color: var(--red);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.reviewEditLink:hover {
+  text-decoration: underline;
+}
+
+.reviewRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.reviewRow:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.reviewLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.reviewValue {
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+}
+
+.reviewAgeGroupGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.reviewAgeGroupCard {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--chip);
+}
+:global([data-theme='dark']) .reviewAgeGroupCard {
+  background: rgba(255, 255, 255, 0.03);
+}
+.reviewAgeGroupHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.reviewAgeGroupFormat {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.submitErrors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.submitErrorLink {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--red);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.submitErrorLink:hover {
+  text-decoration: underline;
+}
+
+.footerNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 24px;
+}
+.footerNavRight {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .optionGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,435 @@
+.bannerError {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: var(--red);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .filterChip:hover {
+    border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+  }
+}
+.filterChipActive {
+  color: var(--text);
+  background: var(--chip);
+  border-color: var(--line);
+}
+.filterChip:not(.filterChipActive) .dot {
+  opacity: 0.35;
+}
+
+.teamFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.teamFilterLabel {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.teamSelect {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.dotAccepted {
+  background: var(--success);
+}
+.dotInvited {
+  background: #b8860b;
+}
+:global([data-theme='dark']) .dotInvited {
+  background: #d9a441;
+}
+.dotCompleted {
+  background: var(--muted);
+}
+
+.calendarShell {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .calendarShell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calendarPanel {
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+}
+:global([data-theme='dark']) .calendarPanel {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 180ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .navBtn:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+}
+
+.monthLabel {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.todayBtn {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .todayBtn:hover {
+    color: var(--red);
+    border-color: var(--red);
+  }
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 2px 6px;
+}
+.weekdays span {
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.calendarDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 2px 5px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .calendarDay:hover {
+    background: var(--card);
+  }
+}
+
+.dayNumber {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.calendarDayOutside {
+  opacity: 0.35;
+}
+
+.calendarDayToday {
+  border-color: var(--red);
+}
+.calendarDayToday .dayNumber {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.calendarDaySelected,
+.calendarDaySelected:hover {
+  background: var(--red);
+}
+.calendarDaySelected .dayNumber {
+  color: #fff;
+}
+
+.dayDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 8px;
+}
+.calendarDaySelected .dot {
+  background: #fff !important;
+  opacity: 0.9;
+}
+
+.dayMore {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 8.5px;
+  color: var(--muted);
+}
+.calendarDaySelected .dayMore {
+  color: #fff;
+}
+
+.agenda {
+  min-width: 0;
+}
+
+.agendaHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.agendaTitle {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.agendaClear {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--red);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .agendaClear:hover {
+    text-decoration: underline;
+  }
+}
+
+.entryList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entryCard {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--chip);
+}
+:global([data-theme='dark']) .entryCard {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.entryCardHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.entryName {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text);
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  a.entryName:hover {
+    color: var(--red);
+  }
+}
+
+.categoryBadge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badgeAccepted {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.badgeInvited {
+  color: #b8860b;
+  background: color-mix(in srgb, #b8860b 14%, transparent);
+}
+:global([data-theme='dark']) .badgeInvited {
+  color: #d9a441;
+  background: color-mix(in srgb, #d9a441 18%, transparent);
+}
+.badgeCompleted {
+  color: var(--muted);
+  background: var(--line);
+}
+
+.entryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin: 5px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.entryMetaDot {
+  color: var(--line);
+}
+
+.inviteActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.acceptBtn,
+.declineBtn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+.acceptBtn {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, var(--line));
+}
+@media (hover: hover) and (pointer: fine) {
+  .acceptBtn:hover {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+  }
+}
+.declineBtn {
+  color: var(--muted);
+}
+@media (hover: hover) and (pointer: fine) {
+  .declineBtn:hover {
+    color: var(--red);
+    border-color: var(--red);
+  }
+}
+
+@media (max-width: 480px) {
+  .calendarDay {
+    min-height: 44px;
+  }
+}

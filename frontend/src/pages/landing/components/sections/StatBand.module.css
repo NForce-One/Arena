@@ -1,0 +1,78 @@
+.band {
+  background: var(--stat);
+  border-top: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+  padding-block: 32px;
+}
+
+.grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 40px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+.cell:first-child {
+  border-left: 0;
+}
+.cell svg {
+  flex: none;
+}
+
+.value {
+  font-family: 'Inter', sans-serif;
+  font-size: 25px;
+  color: #fff;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum';
+}
+
+.label {
+  font-size: 13.5px;
+  color: #b9bcc3;
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .band {
+    padding-block: 24px;
+  }
+  .grid {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .cell {
+    gap: 10px;
+    padding: 0 16px;
+  }
+  .cell svg {
+    width: 26px;
+    height: 26px;
+  }
+  .value {
+    font-size: 20px;
+  }
+  .label {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+}
+
+@media (max-width: 380px) {
+  .cell {
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .value {
+    font-size: 18px;
+  }
+  .label {
+    font-size: 11px;
+  }
+}
